@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+   file=$1
+   file_name="${file##*/}"
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (frames dropped from beginning).mp4/'`
+   frate=$(ffprobe "$file" 2>&1| grep ",* fps" | cut -d "," -f 5 | cut -d " " -f 2)
+   frame_length=$(echo "1 $frate" | awk '{print $1 / $2}')
+
+if test -f "$convert_file"; then   
+   (zenity --question --text="$convert_file already exists. Overwrite it?"
+      if [ $? = 1 ]; then
+      kill -9 $$
+   else
+      rm "$convert_file"
+   fi)
+fi
+
+drop_frames=$(zenity --entry --title "FFMpegScripts" --text "Please enter the number of frames you want to drop:")
+drop_length=$(echo "$drop_frames $frame_length" | awk '{print $1 * $2}')
+vid_length=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$file")
+
+ffmpeg -i "$file" -ss "$drop_length" -to "$vid_length" "$convert_file" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Trimming..." --text="Trimming ""$file_name""" &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+   shift
+done
