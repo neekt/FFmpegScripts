@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+nloop="3"
+
+if (($nloop < "0")); then
+  exit
+fi
+
+   file=$1
+   file_name="${file##*/}"
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (boomerang x4).mp4/'`
+   temp_file_name=`echo "$file_name" | sed 's/\.\w*$/ (temp).mp4/'`
+   TMPDIR=/tmp/ffmpegscripts/
+   mkdir $TMPDIR
+   temp_file=${TMPDIR}"${temp_file_name##*/}"
+
+if test -f "$convert_file"; then   
+   (zenity --question --text="$convert_file already exists. Overwrite it?"
+      if [ $? = 1 ]; then
+      kill -9 $$
+   else
+      rm "$convert_file"
+   fi)
+fi
+
+   (ffmpeg -i "$file" -crf 18 -filter_complex \
+"[0:v]setpts=PTS-STARTPTS[v0]; \
+ [0:v]reverse,setpts=PTS-STARTPTS[v1]; \
+ [v0][v1]concat=n=2:v=1[out]" \
+-map "[out]" "$temp_file") | zenity --progress --confirm-overwrite --pulsate --title="Boomerang" --auto-close --text="Boomeranging..." 
+
+ffmpeg -stream_loop "$nloop" -i "$temp_file" -c copy "$convert_file" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Looping" --text="Looping..." &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+rm "$temp_file"
+
+   shift
+done
+

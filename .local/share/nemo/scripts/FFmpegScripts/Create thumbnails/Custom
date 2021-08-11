@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+   INPUT=$1
+   OUTPUT=`echo "$INPUT" | sed 's/\.\w*$/ thumbnails.jpg/'`
+   rows=$(zenity --entry --title "Number of rows" --text "Please enter the number of rows")
+   columns=$(zenity --entry --title "Number of columns" --text "Please enter the number of columns")
+   NFRAMES=$(echo "$rows $columns" | awk '{print $1 * $2}')
+   TILE="$columns""x""$rows"
+   SIZE="1920"
+
+if test -f "$OUTPUT"; then   
+   (zenity --question --text="$OUTPUT already exists. Overwrite it?"
+      if [ $? = 1 ]; then
+      kill -9 $$
+   else
+      rm "$OUTPUT"
+   fi)
+fi
+
+DURATION=$(ffprobe -loglevel error -show_streams "$INPUT" | grep duration= | cut -f2 -d= | head -1)
+FPS=$(echo "$NFRAMES / $DURATION" | bc -l)
+
+TMPDIR=/tmp/thumbnails-${RANDOM}/
+mkdir $TMPDIR
+
+ffmpeg -i "$INPUT" -f image2 -vf fps=fps=$FPS ${TMPDIR}thumb%04d.jpg | zenity --progress --pulsate --auto-close --percentage=0 --text="Creating thumbnails..." --no-cancel
+
+montage ${TMPDIR}thumb*.jpg -title "$INPUT" -pointsize 20 -background white -geometry +5+5 -tile $TILE ${TMPDIR}output.jpg | zenity --progress --auto-close --percentage=0 --text="Combining thumbnails" --no-cancel
+
+convert ${TMPDIR}output.jpg -resize ${SIZE}x${SIZE} "$OUTPUT"
+
+   shift
+done

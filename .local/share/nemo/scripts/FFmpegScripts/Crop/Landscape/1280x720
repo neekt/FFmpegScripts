@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+   file=$1
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (1280x720).mp4/'`
+
+if test -f "$convert_file"; then   
+   (zenity --question --text="$convert_file already exists. Overwrite it?"
+      if [ $? = 1 ]; then
+      kill -9 $$
+   else
+      rm "$convert_file"
+   fi)
+fi
+
+   ffmpeg -i "$file" -filter:v "crop=1280:720" -c:a copy "$convert_file" | zenity --progress --pulsate --title="Cropping..." --auto-close --text="Cropping..." &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+   shift
+done

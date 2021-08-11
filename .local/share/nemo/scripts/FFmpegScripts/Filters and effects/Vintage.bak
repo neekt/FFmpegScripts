@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+   file=$1
+   vheight=$(ffprobe -v error -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$file")
+   vwidth=$(echo "$vheight  0.47368421052" | awk '{print $1 * $2}')
+   file_name="${file##*/}"
+   temp_fast=`echo "$file" | sed 's/\.\w*$/ (temp_fast).mp4/'`
+   temp_vintage_fast=`echo "$file" | sed 's/\.\w*$/ (temp_vintage).mp4/'`
+   old_film=`echo "$file" | sed 's/\.\w*$/ (old_film).mp4/'`
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (vintage).mp4/'`
+
+if test -f "$convert_file"; then   
+   (zenity --question --text="$convert_file already exists. Overwrite it?"
+      if [ $? = 1 ]; then
+      kill -9 $$
+   else
+      rm "$convert_file"
+   fi)
+fi
+
+ffmpeg -i "$file" -filter:v fps=30 -c:a copy "$temp_fast" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Vintage effect" --text="Editing frame rate...";
+
+ffmpeg -i "$file" -crf 18 -filter:v curves=vintage -c:a copy "$temp_vintage_fast" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Vintage effect" --text="Applying curve filter...";
+
+ffmpeg -i "/home/tom/.local/share/nemo/scripts/FFMpeg/Filters and effects/old-film-grain.wmv" -vf "crop=trunc("$vwidth"/2)*2:trunc("$vheight"/2)*2",setsar=1:1 "$old_film" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Vintage effect" --text="Scaling...";
+
+ffmpeg \
+-i "$old_film" \
+-i "$temp_vintage_fast" \
+-filter_complex "[0]format=rgba,colorchannelmixer=aa=0.25[fg];\
+[1][fg]overlay[out]" \
+-map [out] \
+-pix_fmt yuv420p -c:v libx264 -crf 18 \
+"$convert_file" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Vintage effect" --text="Combining..." &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+rm "$temp_fast"
+rm "$temp_vintage_fast"
+rm "$old_film"
+
+   shift
+done

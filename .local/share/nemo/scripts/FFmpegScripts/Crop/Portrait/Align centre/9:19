@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+   file=$1
+   vheight=$(ffprobe -v error -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$file")
+   vwidth=$(echo "$vheight  0.47368421052" | awk '{print $1 * $2}')
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (9:19).mp4/'`
+
+if test -f "$convert_file"; then   
+   (zenity --question --text="$convert_file already exists. Overwrite it?"
+      if [ $? = 1 ]; then
+      kill -9 $$
+   else
+      rm "$convert_file"
+   fi)
+fi
+
+   ffmpeg -i "$file" -crf 18 -filter:v "crop="$vwidth":"$vheight"" -c:a copy "$convert_file" | zenity --progress --pulsate --title="Cropping..." --auto-close \
+--percentage=0 --text="Cropping..." &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+   shift
+done
+

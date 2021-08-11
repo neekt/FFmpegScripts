@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+file=""
+nfiles="$#"
+
+for file in "$@";
+  do 
+    name=$(echo "$file" | cut -d'.' -f1)
+    if $nfiles > 1 text=""$nfiles" files" else text="$file"
+    ffmpeg -i "$file" "${name}.jpg" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="FFMpegScripts" --text="Converting ""$file"
+done
+
+done

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+   file=$1
+   file_name="${file##*/}"
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (flipped vertically).mp4/'`
+   ffmpeg -i "$file" -crf 18 -vf vflip -c:a copy "$convert_file" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Flipping..." --text="Flipping ""$file_name"""
+--percentage=0 --text="Flipping..." --no-cancel
+   shift
+done

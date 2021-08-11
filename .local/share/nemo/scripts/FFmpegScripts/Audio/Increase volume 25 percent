@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+   file=$1
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (volume 125%).mp4/'`
+
+   (ffmpeg -i "$file" -filter:a "volume=1.25" "$convert_file") | zenity --progress --pulsate --title="Increasing volume" --auto-close --text="Increasing volume..." &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+   shift
+done

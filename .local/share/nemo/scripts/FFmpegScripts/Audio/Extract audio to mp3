@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+   file=$1
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (audio).mp3/'`
+
+   (ffmpeg -i "$file" -q:a 0 -map a "$convert_file") | zenity --progress --pulsate --title="Extracting audio" --auto-close --text="Extracting audio..." --auto-kill &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+   shift
+done

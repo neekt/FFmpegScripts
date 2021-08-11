@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+   file=$1
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (with image banner).mp4/'`
+   image_file=$(zenity --file-selection --title="Select the image you want to add to your audio track")
+
+   (ffmpeg -i "$image_file" -i "$file" -c copy -map 0:v:0 -map 1:a:0 "$convert_file") | zenity --progress --pulsate --title="Adding image" --auto-close --text="Adding image to audio track..." &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+   shift
+done

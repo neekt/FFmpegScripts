@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+   file=$1
+   file_name="${file##*/}"
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (rotated 180).mp4/'`
+   ffmpeg -i "$file" -crf 18 -vf "transpose=2,transpose=2" -c:a copy "$convert_file" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Rotating..." --text="Rotating ""$file_name""" --no-cancel
+   shift
+done

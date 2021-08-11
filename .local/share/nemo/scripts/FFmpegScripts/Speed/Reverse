@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+   file=$1
+   file_name="${file##*/}"
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (reversed).mp4/'`
+
+if test -f "$convert_file"; then   
+   (zenity --question --text="$convert_file already exists. Overwrite it?"
+      if [ $? = 1 ]; then
+      kill -9 $$
+   else
+      rm "$convert_file"
+   fi)
+fi
+
+   ffmpeg -i "$file" -crf 18 -vf reverse -af areverse "$convert_file" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Reversing..." --text="Reversing ""$file_name""" &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+   shift
+done

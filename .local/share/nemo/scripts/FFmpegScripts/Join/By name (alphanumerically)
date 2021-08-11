@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+ls "$@" | sed "s/^/file '/g; s/$/'/g" > file.txt
+today=`date '+%Y_%m_%d__%H_%M_%S'`;
+ffmpeg -f concat -safe 0 -i file.txt -c copy "$today.mp4" | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Joining..." --text="Joining files..." &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG"
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+rm file.txt
+
+   shift
+done

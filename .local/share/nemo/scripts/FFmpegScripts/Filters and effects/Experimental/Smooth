@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+   file=$1
+   file_name="${file##*/}"
+   convert_file=`echo "$file" | sed 's/\.\w*$/ (smoothed).mp4/'`
+   #frate=$(ffprobe "$file" 2>&1| grep ",* fps" | cut -d "," -f 5 | cut -d " " -f 2)
+   #newrate=$(echo "$frate 4" | awk '{print $1 * $2}')
+
+if test -f "$convert_file"; then   
+   (zenity --question --text="$convert_file already exists. Overwrite it?"
+      if [ $? = 1 ]; then
+      kill -9 $$
+   else
+      rm "$convert_file"
+   fi)
+fi
+
+{ ffmpeg -i "$file" -crf 18 -filter:v "minterpolate='mi_mode=mci:mc_mode=aobmc:vsbmc=1:fps=30'" "$convert_file" || (zenity --info --width 250 --title="Error" --text="Sorry, there was an error processing ""'$file'""." && rm "$convert_file") >/dev/null; } | zenity --progress --confirm-overwrite --pulsate --auto-close --title="Interpolating frames..." --text="Smoothing ""'$file_name'" &
+
+PID_ZENITY=${!}
+PID_CHILD=$(pgrep -o -P $$)
+export PID_FFMPEG=`jobs -p`
+
+while [ "$PID_ZENITY" != "" ]
+do
+  PID_TASKS=$(pgrep -d ' ' -P ${PID_CHILD})
+  PID_ZENITY=$(ps h -o pid --pid ${PID_ZENITY} | xargs)
+  sleep 2
+done
+
+kill -9 "$PID_FFMPEG" && rm "$convert_file";
+
+if test -f "$convert_file"; then
+    zenity --info --width 300 --title="Smooth" --text="Finished processing ""'$convert_file'""."
+fi
+
+[ "${PID_TASKS}" != "" ] && kill -9 ${PID_TASKS}
+
+   shift
+done

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+   file=$1
+   TMPDIR=/tmp/thumbnails-${RANDOM}/
+   mkdir $TMPDIR
+   textfile=`echo "$TMPDIR""temp.txt"`
+ffprobe "$file" -hide_banner > "$textfile" 2>&1
+   zenity --text-info \
+       --title="Video information" \
+       --filename=$textfile \
+       --width="1280" \
+       --height="720" \
+       --font="DejaVu Sans Mono"
+done
